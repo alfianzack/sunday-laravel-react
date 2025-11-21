@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 import { BookOpen, LayoutDashboard, Book, ShoppingCart, ClipboardList, LogOut, LogIn, UserPlus, FileText } from 'lucide-react';
 
 interface User {
@@ -19,8 +19,8 @@ export default function Navbar() {
   const user = auth?.user;
 
   const handleLogout = () => {
-    // Inertia will handle logout via route
-    window.location.href = '/logout';
+    // Use Inertia router to visit logout route
+    router.visit('/logout', { method: 'post' });
   };
 
   return (
