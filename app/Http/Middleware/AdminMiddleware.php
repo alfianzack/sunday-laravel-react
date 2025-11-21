@@ -15,8 +15,11 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (!auth()->check() || auth()->user()->role !== 'admin') {
-            abort(403, 'Unauthorized');
+        // Check if user exists in session (set by Node.js backend)
+        $user = $request->session()->get('user');
+        
+        if (!$user || ($user['role'] ?? null) !== 'admin') {
+            abort(403, 'Unauthorized. Admin access required.');
         }
 
         return $next($request);

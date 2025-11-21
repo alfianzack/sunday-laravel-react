@@ -54,7 +54,11 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
             'token' => $response['token'],
         ]);
         
-        // Redirect to home or intended page
+        // Redirect admin to admin dashboard, others to home or intended page
+        if (($response['user']['role'] ?? null) === 'admin') {
+            return redirect()->intended('/admin');
+        }
+        
         return redirect()->intended('/');
     }
 
@@ -346,5 +350,162 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
             ],
         ]);
     })->name('admin.orders');
+
+    Route::patch('/orders/{orderId}/confirm', function ($orderId) {
+        // Use Http directly for PATCH request
+        $response = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('token'),
+        ])->patch(config('services.api.url') . "/admin/orders/{$orderId}/confirm");
+        
+        if ($response->successful()) {
+            return redirect()->route('admin.orders')->with('success', 'Payment confirmed successfully');
+        }
+        
+        return back()->withErrors(['error' => $response->json()['error'] ?? 'Failed to confirm payment']);
+    })->name('admin.orders.confirm');
+
+    // Create course
+    Route::post('/courses', function (\Illuminate\Http\Request $request) {
+        $api = new \App\Services\ApiService();
+        
+        // Prepare form data for file upload
+        $data = $request->except(['_token', 'thumbnail', 'preview_video']);
+        
+        // For file upload, we need to use Http directly
+        $http = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('token'),
+        ]);
+        
+        // Add files if present
+        if ($request->hasFile('thumbnail')) {
+            $http = $http->attach('thumbnail', file_get_contents($request->file('thumbnail')->getRealPath()), $request->file('thumbnail')->getClientOriginalName());
+        }
+        if ($request->hasFile('preview_video')) {
+            $http = $http->attach('preview_video', file_get_contents($request->file('preview_video')->getRealPath()), $request->file('preview_video')->getClientOriginalName());
+        }
+        
+        $response = $http->post(config('services.api.url') . '/admin/courses', $data);
+        
+        if ($response->successful()) {
+            $courseData = $response->json();
+            return redirect()->route('admin.courses.show', $courseData['course']['id'])->with('success', 'Course created successfully');
+        }
+        
+        return back()->withErrors(['error' => $response->json()['error'] ?? 'Failed to create course']);
+    })->name('admin.courses.store');
+
+    // Edit course page
+    Route::get('/courses/{id}/edit', function ($id) {
+        $api = new \App\Services\ApiService();
+        
+        // Get course detail from Node.js backend
+        $course = $api->get("courses/{$id}");
+        
+        if (!$course) {
+            abort(404, 'Course not found');
+        }
+        
+        return Inertia::render('Admin/Courses/Edit', [
+            'course' => $course,
+            'auth' => [
+                'user' => session('user'),
+            ],
+        ]);
+    })->name('admin.courses.edit');
+
+    // Update course
+    Route::put('/courses/{id}', function (\Illuminate\Http\Request $request, $id) {
+        $api = new \App\Services\ApiService();
+        
+        // Prepare form data for file upload
+        $data = $request->except(['_token', '_method', 'thumbnail', 'preview_video']);
+        
+        // For file upload, we need to use Http directly
+        $http = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('token'),
+        ]);
+        
+        // Add files if present
+        if ($request->hasFile('thumbnail')) {
+            $http = $http->attach('thumbnail', file_get_contents($request->file('thumbnail')->getRealPath()), $request->file('thumbnail')->getClientOriginalName());
+        }
+        if ($request->hasFile('preview_video')) {
+            $http = $http->attach('preview_video', file_get_contents($request->file('preview_video')->getRealPath()), $request->file('preview_video')->getClientOriginalName());
+        }
+        
+        $response = $http->put(config('services.api.url') . "/admin/courses/{$id}", $data);
+        
+        if ($response->successful()) {
+            return redirect()->route('admin.courses.show', $id)->with('success', 'Course updated successfully');
+        }
+        
+        return back()->withErrors(['error' => $response->json()['error'] ?? 'Failed to update course']);
+    })->name('admin.courses.update');
+
+    // Add video to course
+    Route::post('/courses/{id}/videos', function (\Illuminate\Http\Request $request, $id) {
+        $api = new \App\Services\ApiService();
+        
+        // Prepare form data for file upload
+        $data = $request->except(['_token', 'video']);
+        
+        // For file upload, we need to use Http directly
+        $http = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('token'),
+        ]);
+        
+        // Add video file if present
+        if ($request->hasFile('video')) {
+            $http = $http->attach('video', file_get_contents($request->file('video')->getRealPath()), $request->file('video')->getClientOriginalName());
+        }
+        
+        $response = $http->post(config('services.api.url') . "/admin/courses/{$id}/videos", $data);
+        
+        if ($response->successful()) {
+            return redirect()->route('admin.courses.show', $id)->with('success', 'Video added successfully');
+        }
+        
+        return back()->withErrors(['error' => $response->json()['error'] ?? 'Failed to add video']);
+    })->name('admin.courses.videos.store');
+
+    // Update video
+    Route::put('/courses/{courseId}/videos/{videoId}', function (\Illuminate\Http\Request $request, $courseId, $videoId) {
+        $api = new \App\Services\ApiService();
+        
+        // Prepare form data for file upload
+        $data = $request->except(['_token', '_method', 'video']);
+        
+        // For file upload, we need to use Http directly
+        $http = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . session('token'),
+        ]);
+        
+        // Add video file if present
+        if ($request->hasFile('video')) {
+            $http = $http->attach('video', file_get_contents($request->file('video')->getRealPath()), $request->file('video')->getClientOriginalName());
+        }
+        
+        $response = $http->put(config('services.api.url') . "/admin/courses/{$courseId}/videos/{$videoId}", $data);
+        
+        if ($response->successful()) {
+            return redirect()->route('admin.courses.show', $courseId)->with('success', 'Video updated successfully');
+        }
+        
+        return back()->withErrors(['error' => $response->json()['error'] ?? 'Failed to update video']);
+    })->name('admin.courses.videos.update');
+
+    // Delete video
+    Route::delete('/courses/{courseId}/videos/{videoId}', function ($courseId, $videoId) {
+        $api = new \App\Services\ApiService();
+        
+        // Delete video via Node.js backend
+        $response = $api->delete("admin/courses/{$courseId}/videos/{$videoId}");
+        
+        if ($response) {
+            return redirect()->route('admin.courses.show', $courseId)->with('success', 'Video deleted successfully');
+        }
+        
+        return back()->withErrors(['error' => 'Failed to delete video']);
+    })->name('admin.courses.videos.destroy');
 });
 

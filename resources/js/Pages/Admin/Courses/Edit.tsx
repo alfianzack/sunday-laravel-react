@@ -2,7 +2,27 @@ import { Head, useForm, Link } from '@inertiajs/react';
 import Layout from '@/Layout';
 import { ArrowLeft, Upload } from 'lucide-react';
 
+interface Video {
+  id: number;
+  title: string;
+  description?: string;
+  duration?: number;
+  video_url: string;
+  order_index?: number;
+}
+
+interface Course {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  thumbnail_url?: string;
+  preview_video_url?: string;
+  videos?: Video[];
+}
+
 interface Props {
+  course: Course;
   auth?: {
     user?: {
       id: number;
@@ -11,19 +31,19 @@ interface Props {
   };
 }
 
-export default function AdminCoursesCreate({ auth }: Props) {
-  const { data, setData, post, processing, errors } = useForm({
-    title: '',
-    description: '',
-    price: '',
+export default function AdminCoursesEdit({ course, auth }: Props) {
+  const { data, setData, put, processing, errors } = useForm({
+    title: course.title || '',
+    description: course.description || '',
+    price: course.price?.toString() || '',
     thumbnail: null as File | null,
     preview_video: null as File | null,
-    preview_video_url: '',
+    preview_video_url: course.preview_video_url || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    post('/admin/courses', {
+    put(`/admin/courses/${course.id}`, {
       forceFormData: true,
       onSuccess: () => {
         // Redirect will be handled by Inertia
@@ -32,19 +52,19 @@ export default function AdminCoursesCreate({ auth }: Props) {
   };
 
   return (
-    <Layout title="Tambah Materi">
+    <Layout title={`Edit Materi - ${course.title}`}>
       <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-white">
         <div className="container mx-auto px-4 py-12">
           <div className="mb-8">
             <Link
-              href="/admin/courses"
+              href={`/admin/courses/${course.id}`}
               className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
-              Kembali ke Daftar Materi
+              Kembali ke Detail Materi
             </Link>
-            <h1 className="text-4xl font-bold mb-2 text-gray-900">Tambah Materi Baru</h1>
-            <p className="text-lg text-gray-600">Buat materi kursus baru</p>
+            <h1 className="text-4xl font-bold mb-2 text-gray-900">Edit Materi</h1>
+            <p className="text-lg text-gray-600">Ubah informasi materi kursus</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-8 max-w-3xl">
@@ -103,8 +123,17 @@ export default function AdminCoursesCreate({ auth }: Props) {
 
               <div>
                 <label className="block text-gray-700 text-sm font-semibold mb-2">
-                  Thumbnail
+                  Thumbnail (kosongkan jika tidak ingin mengubah)
                 </label>
+                {course.thumbnail_url && (
+                  <div className="mb-4">
+                    <img
+                      src={course.thumbnail_url.startsWith('http') ? course.thumbnail_url : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${course.thumbnail_url}`}
+                      alt={course.title}
+                      className="w-48 h-32 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-teal-400 transition-colors">
                   <input
                     type="file"
@@ -112,7 +141,6 @@ export default function AdminCoursesCreate({ auth }: Props) {
                     onChange={(e) => setData('thumbnail', e.target.files?.[0] || null)}
                     className="hidden"
                     id="thumbnail"
-                    required
                   />
                   <label
                     htmlFor="thumbnail"
@@ -137,7 +165,7 @@ export default function AdminCoursesCreate({ auth }: Props) {
 
               <div>
                 <label className="block text-gray-700 text-sm font-semibold mb-2">
-                  Preview Video URL
+                  Preview Video URL (kosongkan jika tidak ingin mengubah)
                 </label>
                 <input
                   type="url"
@@ -178,7 +206,7 @@ export default function AdminCoursesCreate({ auth }: Props) {
 
               <div className="flex gap-4">
                 <Link
-                  href="/admin/courses"
+                  href={`/admin/courses/${course.id}`}
                   className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Batal
@@ -188,7 +216,7 @@ export default function AdminCoursesCreate({ auth }: Props) {
                   disabled={processing}
                   className="ml-auto bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {processing ? 'Menyimpan...' : 'Simpan Materi'}
+                  {processing ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
               </div>
             </form>

@@ -31,6 +31,12 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
 |
 */
 
+// Load custom helpers early (before Laravel's helpers)
+// This is needed for cPanel deployment where public_html is used instead of public
+if (file_exists(__DIR__.'/../app/helpers.php')) {
+    require __DIR__.'/../app/helpers.php';
+}
+
 require __DIR__.'/../vendor/autoload.php';
 
 /*

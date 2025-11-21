@@ -1,6 +1,8 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import Layout from '@/Layout';
 import VideoPlayer from '@/Components/VideoPlayer';
+import { useState } from 'react';
+import { Plus, Edit, Trash2, X } from 'lucide-react';
 
 interface Video {
   id: number;
@@ -31,6 +33,74 @@ interface Props {
 }
 
 export default function AdminCoursesShow({ course, auth }: Props) {
+  const [showAddVideo, setShowAddVideo] = useState(false);
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  
+  const { data: videoData, setData: setVideoData, post: postVideo, put: putVideo, processing: videoProcessing, reset: resetVideo } = useForm({
+    title: '',
+    description: '',
+    video_url: '',
+    duration: '',
+    order_index: '',
+    video: null as File | null,
+  });
+
+  const handleAddVideo = (e: React.FormEvent) => {
+    e.preventDefault();
+    postVideo(`/admin/courses/${course.id}/videos`, {
+      forceFormData: true,
+      onSuccess: () => {
+        setShowAddVideo(false);
+        resetVideo();
+        router.reload();
+      },
+    });
+  };
+
+  const handleEditVideo = (video: Video) => {
+    setEditingVideo(video);
+    setVideoData({
+      title: video.title,
+      description: video.description || '',
+      video_url: video.video_url,
+      duration: video.duration?.toString() || '',
+      order_index: video.order_index?.toString() || '',
+      video: null,
+    });
+    setShowAddVideo(true);
+  };
+
+  const handleUpdateVideo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVideo) return;
+    
+    putVideo(`/admin/courses/${course.id}/videos/${editingVideo.id}`, {
+      forceFormData: true,
+      onSuccess: () => {
+        setShowAddVideo(false);
+        setEditingVideo(null);
+        resetVideo();
+        router.reload();
+      },
+    });
+  };
+
+  const handleDeleteVideo = (videoId: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus video ini?')) {
+      router.delete(`/admin/courses/${course.id}/videos/${videoId}`, {
+        onSuccess: () => {
+          router.reload();
+        },
+      });
+    }
+  };
+
+  const handleCancelVideo = () => {
+    setShowAddVideo(false);
+    setEditingVideo(null);
+    resetVideo();
+  };
+
   return (
     <Layout title={`Admin - ${course.title}`}>
       <div className="min-h-screen bg-gray-50">
@@ -75,9 +145,130 @@ export default function AdminCoursesShow({ course, auth }: Props) {
                     </div>
                   )}
 
-                  {course.videos && course.videos.length > 0 && (
-                    <div>
-                      <h2 className="text-2xl font-bold mb-4 text-gray-900">Daftar Video ({course.videos.length})</h2>
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Daftar Video ({course.videos?.length || 0})
+                      </h2>
+                      {!showAddVideo && (
+                        <button
+                          onClick={() => setShowAddVideo(true)}
+                          className="inline-flex items-center gap-2 bg-teal-500 hover:bg-teal-600 text-white font-semibold px-4 py-2 rounded-xl transition-all shadow-md hover:shadow-lg"
+                        >
+                          <Plus className="w-5 h-5" />
+                          Tambah Video
+                        </button>
+                      )}
+                    </div>
+
+                    {showAddVideo && (
+                      <div className="bg-teal-50 border-2 border-teal-200 rounded-xl p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xl font-bold text-gray-900">
+                            {editingVideo ? 'Edit Video' : 'Tambah Video Baru'}
+                          </h3>
+                          <button
+                            onClick={handleCancelVideo}
+                            className="text-gray-500 hover:text-gray-700"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </div>
+                        <form onSubmit={editingVideo ? handleUpdateVideo : handleAddVideo} className="space-y-4">
+                          <div>
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">
+                              Judul Video
+                            </label>
+                            <input
+                              type="text"
+                              value={videoData.title}
+                              onChange={(e) => setVideoData('title', e.target.value)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">
+                              Deskripsi
+                            </label>
+                            <textarea
+                              value={videoData.description}
+                              onChange={(e) => setVideoData('description', e.target.value)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-gray-700 text-sm font-semibold mb-2">
+                                Durasi (detik)
+                              </label>
+                              <input
+                                type="number"
+                                value={videoData.duration}
+                                onChange={(e) => setVideoData('duration', e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                min="0"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-gray-700 text-sm font-semibold mb-2">
+                                Urutan
+                              </label>
+                              <input
+                                type="number"
+                                value={videoData.order_index}
+                                onChange={(e) => setVideoData('order_index', e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">
+                              Video URL
+                            </label>
+                            <input
+                              type="url"
+                              value={videoData.video_url}
+                              onChange={(e) => setVideoData('video_url', e.target.value)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                              placeholder="https://..."
+                            />
+                            <p className="mt-2 text-sm text-gray-500">Atau upload file video di bawah</p>
+                          </div>
+                          <div>
+                            <label className="block text-gray-700 text-sm font-semibold mb-2">
+                              File Video
+                            </label>
+                            <input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => setVideoData('video', e.target.files?.[0] || null)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            />
+                          </div>
+                          <div className="flex gap-4">
+                            <button
+                              type="button"
+                              onClick={handleCancelVideo}
+                              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={videoProcessing}
+                              className="ml-auto bg-teal-500 hover:bg-teal-600 text-white font-semibold px-6 py-2 rounded-lg disabled:opacity-50"
+                            >
+                              {videoProcessing ? 'Menyimpan...' : editingVideo ? 'Update Video' : 'Tambah Video'}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+
+                    {course.videos && course.videos.length > 0 ? (
                       <div className="space-y-3">
                         {course.videos.map((video, index) => (
                           <div key={video.id} className="bg-gray-50 hover:bg-gray-100 p-4 rounded-xl transition-colors border border-gray-200">
@@ -99,12 +290,32 @@ export default function AdminCoursesShow({ course, auth }: Props) {
                                   </div>
                                 )}
                               </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleEditVideo(video)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Edit Video"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteVideo(video.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Hapus Video"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-center py-8 text-gray-500">
+                        Belum ada video. Klik "Tambah Video" untuk menambahkan video pertama.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

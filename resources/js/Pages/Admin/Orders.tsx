@@ -4,12 +4,15 @@ import { FileText, CheckCircle2, Clock } from 'lucide-react';
 
 interface Order {
   id: number;
-  user_name: string;
-  total: number;
+  user_name?: string;
+  user_email?: string;
+  total_amount: number;
   status: string;
   created_at: string;
   items?: Array<{
-    course_title: string;
+    id: number;
+    title: string;
+    price: number;
   }>;
 }
 
@@ -26,7 +29,11 @@ interface Props {
 export default function AdminOrders({ orders, auth }: Props) {
   const handleConfirm = (orderId: number) => {
     if (confirm('Konfirmasi pembayaran untuk pesanan ini?')) {
-      router.patch(`/admin/orders/${orderId}/confirm`);
+      router.patch(`/admin/orders/${orderId}/confirm`, {}, {
+        onSuccess: () => {
+          router.reload();
+        },
+      });
     }
   };
 
@@ -79,7 +86,7 @@ export default function AdminOrders({ orders, auth }: Props) {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">Pesanan #{order.id}</h3>
-                      <p className="text-gray-600 text-sm mb-1">Oleh: {order.user_name}</p>
+                      <p className="text-gray-600 text-sm mb-1">Oleh: {order.user_name || order.user_email || 'Unknown'}</p>
                       <p className="text-gray-600 text-sm">
                         {new Date(order.created_at).toLocaleDateString('id-ID', {
                           year: 'numeric',
@@ -95,7 +102,7 @@ export default function AdminOrders({ orders, auth }: Props) {
                       <p className="text-sm text-gray-600 mb-2">Materi:</p>
                       <ul className="list-disc list-inside text-gray-700">
                         {order.items.map((item, index) => (
-                          <li key={index}>{item.course_title}</li>
+                          <li key={index}>{item.title} - Rp {item.price.toLocaleString('id-ID')}</li>
                         ))}
                       </ul>
                     </div>
@@ -104,7 +111,7 @@ export default function AdminOrders({ orders, auth }: Props) {
                     <span className="text-gray-700 font-semibold">Total</span>
                     <div className="flex items-center gap-4">
                       <span className="text-2xl font-bold text-orange-600">
-                        Rp {order.total.toLocaleString('id-ID')}
+                        Rp {order.total_amount.toLocaleString('id-ID')}
                       </span>
                       {order.status === 'pending' && (
                         <button
